@@ -27,6 +27,7 @@ import sys
 import copy
 import json
 import os
+import optparse
 
 from sphinx import quickstart
 from sphinx.quickstart import ask_user, generate, do_prompt, nonempty, boolean
@@ -65,13 +66,14 @@ popd
 
 class Extension(object):
     def __init__(self, key, description, conf_py=None, new_makefile=None,
-                 makefile=None, package=None):
+                 makefile=None, package=None, options=None):
         self.key = key
         self.description = description
         self.conf_py = conf_py
         self.new_makefile = new_makefile
         self.makefile = makefile
         self.package = package or []
+        self.options = options or []
 
     # noinspection PyUnusedLocal
     def extend_conf_py(self, d):
@@ -97,6 +99,23 @@ class AutoBuildExtension(Extension):
 
         makefile = self.new_makefile if make_mode else self.makefile
         return makefile.format(" ".join(AUTOBUILD_IGNORE))
+
+
+class PatchedOptionParser(optparse.OptionParser):
+    def __init__(self, *args, **kwargs):
+        super().__init__(**kwargs)
+
+    def parse_args(self, *args):
+        group = self.add_option_group('Quick start options')
+
+        for ext in qsp_extensions:
+            group.add_option(*ext.options,
+                action='store_true',
+                dest=ext.key,
+                help=ext.description,
+            )
+
+        return super().parse_args(*args)
 
 
 sphinx_fontawesome_extension = Extension(
@@ -338,6 +357,7 @@ def main(argv=None):
     # monkey patch
     quickstart.ask_user = monkey_patch_ask_user
     quickstart.generate = monkey_patch_generate
+    optparse.OptionParser = PatchedOptionParser
 
     # do sphinx.quickstart
     quickstart.main(argv)
