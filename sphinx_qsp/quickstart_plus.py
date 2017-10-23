@@ -39,6 +39,14 @@ HOME_DIR = os.path.join(os.path.expanduser('~'), ".sphinx_qsp")
 LATEST_SETTING_JSON_NAME = "setting.json"
 
 EXCLUDE_VALUE = ['project', 'author', 'path', 'version', 'release', 'extensions']
+DEFAULT_VALUE = {
+    'ext_fontawesome': True,
+    'ext_commonmark': True,
+    'ext_rtd_theme': True,
+    'ext_nbshpinx': True,
+    'ext_blockdiag': True,
+    'ext_autobuild': True,
+}
 
 AUTOBUILD_IGNORE = [
     '-r "___jb_.*?___$$"',   # for pycharm
@@ -65,8 +73,16 @@ popd
 
 
 class Extension(object):
-    def __init__(self, key, description, conf_py=None, new_makefile=None,
-                 makefile=None, package=None, options=None):
+    def __init__(
+        self,
+        key,
+        description,
+        conf_py=None,
+        new_makefile=None,
+        makefile=None,
+        package=None,
+        options=None,
+    ):
         self.key = key
         self.description = description
         self.conf_py = conf_py
@@ -106,13 +122,14 @@ class PatchedOptionParser(optparse.OptionParser):
         super().__init__(**kwargs)
 
     def parse_args(self, *args):
-        group = self.add_option_group('Quick start options')
+        group = self.add_option_group('Quick start plus options')
 
         for ext in qsp_extensions:
             group.add_option(*ext.options,
                 action='store_true',
                 dest=ext.key,
                 help=ext.description,
+                default=False,
             )
 
         return super().parse_args(*args)
@@ -126,6 +143,7 @@ import sphinx_fontawesome
 extensions.append('sphinx_fontawesome')
 """,
     package=["sphinx-fontawesome"],
+    options=['--use-fontawesome'],
 )
 
 sphinx_commonmark_extension = Extension(
@@ -151,6 +169,7 @@ def setup(app):
     app.add_transform(AutoStructify)
 """,
     package=["CommonMark", "recommonmark"],
+    options=['--use-commonmark'],
 )
 
 sphinx_sphinx_rtd_theme_extension = Extension(
@@ -161,6 +180,7 @@ sphinx_sphinx_rtd_theme_extension = Extension(
 html_theme = "sphinx_rtd_theme"
 """,
     package=["sphinx-rtd-theme"],
+    options=['--use-rtd-theme'],
 )
 
 nbsphinx_extension = Extension(
@@ -172,6 +192,7 @@ extensions.append('nbsphinx')
 exclude_patterns.append('**.ipynb_checkpoints')
 """,
     package=["nbsphinx"],
+    options=['--use-nbsphinx'],
 )
 
 sphinx_blockdiag_extension = Extension(
@@ -197,7 +218,8 @@ packetdiag_html_image_format = 'SVG'
     package=[
         "sphinxcontrib-actdiag", "sphinxcontrib-blockdiag",
         "sphinxcontrib-nwdiag", "sphinxcontrib-seqdiag"
-    ]
+    ],
+    options=['--use-blockdiag'],
 )
 
 sphinx_autobuild_extension = AutoBuildExtension(
@@ -213,6 +235,7 @@ livehtml:
 \tsphinx-autobuild -b html {0} $(SOURCEDIR) $(BUILDDIR)/html
 """,
     package=["sphinx-autobuild"],
+    options=['--use-autobuild'],
 )
 
 qsp_extensions = [
@@ -297,6 +320,11 @@ def monkey_patch_generate(d, templatedir=None):
     global hook_d
     hook_d = copy.copy(d)
 
+    if 'quiet' in hook_d:
+        hook_d.update(DEFAULT_VALUE)
+    
+    # import pdb; pdb.set_trace()
+
     generate(d, templatedir)
 
 
@@ -357,10 +385,18 @@ def main(argv=None):
     # monkey patch
     quickstart.ask_user = monkey_patch_ask_user
     quickstart.generate = monkey_patch_generate
+    # patched_default = quickstart.DEFAULT_VALUE.copy()
+    # patched_default.update(DEFAULT_VALUE)
+    # quickstart.DEFAULT_VALUE = patched_default
+    # sphinx.quickstart.DEFAULT_VALUE.copy(DEFAULT_VALUE)
+
     optparse.OptionParser = PatchedOptionParser
 
     # do sphinx.quickstart
-    quickstart.main(argv)
+    result = quickstart.main(argv)
+
+    if result != 0:
+        return result
 
     # save latest setting.
     save_d = {key: value for key, value in hook_d.items() if key not in EXCLUDE_VALUE}
@@ -395,6 +431,8 @@ def main(argv=None):
         print("Module not found, please enter '{0}' and install module.".format(pip_text))
     else:
         print("ok")
+    
+    return 0
 
 if __name__ == '__main__':
-    main(sys.argv)
+    sys.exit(main(sys.argv))
