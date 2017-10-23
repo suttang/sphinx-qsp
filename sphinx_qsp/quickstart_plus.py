@@ -73,16 +73,8 @@ popd
 
 
 class Extension(object):
-    def __init__(
-        self,
-        key,
-        description,
-        conf_py=None,
-        new_makefile=None,
-        makefile=None,
-        package=None,
-        options=None,
-    ):
+    def __init__(self, key, description, conf_py=None, new_makefile=None,
+                 makefile=None, package=None, options=None):
         self.key = key
         self.description = description
         self.conf_py = conf_py
