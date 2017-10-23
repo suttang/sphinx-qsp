@@ -377,18 +377,13 @@ def main(argv=None):
     # monkey patch
     quickstart.ask_user = monkey_patch_ask_user
     quickstart.generate = monkey_patch_generate
-    # patched_default = quickstart.DEFAULT_VALUE.copy()
-    # patched_default.update(DEFAULT_VALUE)
-    # quickstart.DEFAULT_VALUE = patched_default
-    # sphinx.quickstart.DEFAULT_VALUE.copy(DEFAULT_VALUE)
-
     optparse.OptionParser = PatchedOptionParser
 
     # do sphinx.quickstart
-    result = quickstart.main(argv)
+    return_code = quickstart.main(argv)
 
-    if result != 0:
-        return result
+    if return_code:
+        return return_code
 
     # save latest setting.
     save_d = {key: value for key, value in hook_d.items() if key not in EXCLUDE_VALUE}
